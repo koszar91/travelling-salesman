@@ -3,6 +3,4 @@ Miniproject at AGH UST for Numeric Methods - Simulated Annealing
 
 Authors: filip, koszar91
 
-Language: Python
-
-Libraries: Pygame, Numba
+Tech: Python with pygame
