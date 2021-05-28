@@ -3,85 +3,97 @@ import pygame
 import copy
 import random
 
-# screen
-from numba import jit
 
-WIDTH, HEIGHT = 800, 600
-FPS = 120
-
-# colors
+# GRAPHIC PARAMETERS
+WIDTH, HEIGHT = 1200, 900
+CITY_RADIUS = 7
+FONT_SIZE = 35
+BORDER_THICKNESS = 70
 RED = (255, 0, 0)
+BLUE = (0, 0, 255)
 BLACK = (0, 0, 0)
 YELLOW = (255, 255, 0)
-
-# sizes
-CITY_RADIUS = 5
-FONT_SIZE = 25
-
-# cities
-cities = []
-
-# simulated annealing stuff
-START_TEMPERATURE = 150
-TEMPERATURE_CHANGE = 0.5
-STEPS_FOR_TEMP = 20
+WHITE = (205, 205, 205)
 
 
-def gen_rand_cities(n, width, height):
+# ANNEALING PARAMETERS
+N_CITIES = 10
+TEMP_START = 10
+TEMP_END = 1
+TEMP_CHANGE = 0.999
+
+
+def generate_cities(n, width, height, method):
+    def dist(city1, city2):
+        return sqrt((city2[0] - city1[0]) ** 2 + (city2[1] - city1[1]) ** 2)
     res = []
-    width *= 0.8
-    width += 0.2 * width
-    height *= 0.8
-    height += 0.2 * height
-    for i in range(n):
-        x = random.random() * width
-        y = random.random() * height
-        res.append([x, y])
+    if method == 'random':
+        for i in range(n):
+            x = random.random() * (width - 2 * BORDER_THICKNESS) + BORDER_THICKNESS
+            y = random.random() * (height - 2 * BORDER_THICKNESS) + BORDER_THICKNESS
+            res.append((x, y))
+    elif method == 'circle':
+        alpha = 0
+        alpha_change = 2 * pi / n
+        r = 0.8 * min(width / 2, height / 2)
+        for i in range(n):
+            x = r * cos(alpha) + width / 2
+            y = r * sin(alpha) + height / 2
+            alpha += alpha_change
+            res.append((x, y))
+        for i in range(n * 10):
+            i = random.randint(0, n-1)
+            j = random.randint(0, n-1)
+            res[i], res[j] = res[j], res[i]
+    elif method == 'special':
+        for i in range(n):
+            x = random.random() * (width - 2 * BORDER_THICKNESS) + BORDER_THICKNESS
+            y = random.random() * (height - 2 * BORDER_THICKNESS) + BORDER_THICKNESS
+            res.append((x, y))
+
+        idx_of_second_city = None
+        min_dist = inf
+        for i in range(1, n):
+            if dist(res[0], res[i]) < min_dist:
+                idx_of_second_city = i
+        res[1], res[idx_of_second_city] = res[idx_of_second_city], res[1]
     return res
 
 
-def gen_circle_cities(n, width, height):
-    res = []
-    alpha = 0
-    alpha_change = 2 * pi / n
-    r = 0.8 * min(width/2, height/2)
-    for i in range(n):
-        x = r * cos(alpha) + width/2
-        y = r * sin(alpha) + height/2
-        alpha += alpha_change
-        res.append((x, y))
-    for i in range(1000):
-        res = next_route(res)
-    return res
-
-
-def dist(city1, city2):
-    return sqrt((city2[0] - city1[0]) ** 2 + (city2[1] - city1[1]) ** 2)
-
-
-def total_length(route):
+def get_route_length(route):
+    def dist(city1, city2):
+        return sqrt((city2[0] - city1[0]) ** 2 + (city2[1] - city1[1]) ** 2)
     result = 0
     length = len(route)
     for i in range(length):
-        result += dist(route[i], route[(i + 1) % length])
+        result += dist(route[i], route[(i + 1) % length]) / 10
     return result
 
 
-def next_route(route):
-    i = random.randint(0, len(route) - 1)
-    route[i], route[(i+1)%len(route)] = route[(i+1)%len(route)], route[i]
-    return route
-
-
-def draw_cities(surface):
-    for city in cities:
-        pygame.draw.circle(surface, YELLOW, city, CITY_RADIUS)
-
-
-def draw_route(surface, route):
+def get_next_route(route):
     length = len(route)
-    for i in range(length):
-        pygame.draw.line(surface, RED, route[i], route[(i + 1) % length])
+    res = route[:]
+    i = random.randint(0, length - 1)
+    j = random.randint(0, length - 1)
+    res[i], res[j] = res[j], res[i]
+    return res
+
+
+def draw(surface, city_color, route_color, n_cities, route, route_width, city_radius):
+    screen.fill(BLACK)
+    # draw route
+    for i in range(n_cities):
+        pygame.draw.line(surface, route_color, route[i], route[(i + 1) % n_cities], route_width)
+    # draw cities
+    for city in cities:
+        pygame.draw.circle(surface, city_color, city, city_radius)
+    # draw text
+    if finished:
+        t = 'DONE'
+    else:
+        t = "temperature: {}".format(round(temp, 10))
+    screen.blit(font.render(t, True, RED), (20, 15))
+    pygame.display.update()
 
 
 if __name__ == '__main__':
@@ -91,20 +103,19 @@ if __name__ == '__main__':
     screen = pygame.display.set_mode(window_size)
     pygame.display.set_caption("Travelling Salesman Problem using SA")
     font = pygame.font.SysFont(None, FONT_SIZE)
-    clock = pygame.time.Clock()
 
     # setup logic
-    cities = gen_circle_cities(10, WIDTH, HEIGHT)
-    temp = START_TEMPERATURE
-    best_route = copy.deepcopy(cities)
-    best_length = inf
-    candidate_route = copy.deepcopy(best_route)
+    cities = generate_cities(N_CITIES, WIDTH, HEIGHT, 'circle')
+    temp = TEMP_START
+    new_route = cities[:]
+    curr_route = cities[:]
+    curr_length = inf
     curr_step_for_temp = 0
 
     finished = False
     close_window = False
+
     while not close_window:
-        clock.tick(FPS)
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -112,30 +123,18 @@ if __name__ == '__main__':
 
         if not finished:
             # calculate step
-            candidate_route = next_route(candidate_route)
-            candidate_length = total_length(candidate_route)
-            diff = candidate_length - best_length
+            new_route = get_next_route(curr_route)
+            new_length = get_route_length(new_route)
+            diff = new_length - curr_length
             if diff < 0 or exp(-diff / temp) > random.random():
-                best_length = candidate_length
-                best_route = copy.deepcopy(candidate_route)
+                curr_route = copy.deepcopy(new_route)
+                curr_length = new_length
 
-            if curr_step_for_temp < STEPS_FOR_TEMP:
-                curr_step_for_temp += 1
-            else:
-                curr_step_for_temp = 0
-                temp -= TEMPERATURE_CHANGE
-            if temp <= 0:
-                temp = 0
+            temp *= TEMP_CHANGE
+            if temp <= TEMP_END:
+                temp = TEMP_END
                 finished = True
 
-        # draw graphics
-        screen.fill(BLACK)
-        draw_cities(screen)
-        draw_route(screen, best_route)
-        screen.blit(font.render("temperature: " + repr(round(temp, 3)),
-                                True, YELLOW), (20, 50))
-        screen.blit(font.render("best length: " + repr(round(best_length, 3)),
-                                True, YELLOW), (20, 20))
-        pygame.display.update()
+        draw(screen, RED, WHITE, N_CITIES, curr_route, 3, CITY_RADIUS)
 
     pygame.quit()
