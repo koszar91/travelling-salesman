@@ -4,6 +4,14 @@ import copy
 import random
 
 
+# ANNEALING PARAMETERS
+N_CITIES = 50
+CITIES_PATTERN = 'random'  # can be 'random' or 'circle'
+TEMP_START = 1e6
+TEMP_END = 1e-4
+TEMP_CHANGE = 0.999
+
+
 # GRAPHIC PARAMETERS
 WIDTH, HEIGHT = 1200, 900
 CITY_RADIUS = 7
@@ -14,13 +22,6 @@ BLUE = (0, 0, 255)
 BLACK = (0, 0, 0)
 YELLOW = (255, 255, 0)
 WHITE = (205, 205, 205)
-
-
-# ANNEALING PARAMETERS
-N_CITIES = 10
-TEMP_START = 10
-TEMP_END = 1
-TEMP_CHANGE = 0.999
 
 
 def generate_cities(n, width, height, method):
@@ -105,7 +106,7 @@ if __name__ == '__main__':
     font = pygame.font.SysFont(None, FONT_SIZE)
 
     # setup logic
-    cities = generate_cities(N_CITIES, WIDTH, HEIGHT, 'circle')
+    cities = generate_cities(N_CITIES, WIDTH, HEIGHT, CITIES_PATTERN)
     temp = TEMP_START
     new_route = cities[:]
     curr_route = cities[:]
