@@ -1,4 +1,5 @@
-# Travelling-Salesman-Problem-using-Simulated-Annealing
+# Travelling Salesman Problem
+# ---using-Simulated-Annealing
 Miniproject at AGH UST for Numeric Methods - Simulated Annealing
 
 Authors: filipio, koszar91
